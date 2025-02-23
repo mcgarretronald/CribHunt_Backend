@@ -44,7 +44,7 @@ jobs:
       - name: Set environment variables
         run: |
           echo "DB_NAME=cribhunt" >> $GITHUB_ENV
-          echo "DB_USER=postgress" >> $GITHUB_ENV
+          echo "DB_USER=postgres" >> $GITHUB_ENV
           echo "DB_PASSWORD=admin" >> $GITHUB_ENV
           echo "DB_HOST=127.0.0.1" >> $GITHUB_ENV
           echo "DB_PORT=5432" >> $GITHUB_ENV
