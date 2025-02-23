@@ -1,0 +1,55 @@
+name: Django CI/CD
+on:
+  push:
+    branches:
+      - main
+      - staging
+  pull_request:
+    branches:
+      - main
+      - staging
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_DB: cribhunt
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: admin
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d cribhunt" 
+          --health-interval=10s 
+          --health-timeout=5s 
+          --health-retries=5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Set environment variables
+        run: |
+          echo "DB_NAME=cribhunt" >> $GITHUB_ENV
+          echo "DB_USER=postgres" >> $GITHUB_ENV
+          echo "DB_PASSWORD=admin" >> $GITHUB_ENV
+          echo "DB_HOST=127.0.0.1" >> $GITHUB_ENV
+          echo "DB_PORT=5432" >> $GITHUB_ENV
+
+      - name: Run migrations
+        run: |
+          python manage.py migrate
+
+      - name: Run tests
+        run: |
+          python manage.py test
