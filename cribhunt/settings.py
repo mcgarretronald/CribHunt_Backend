@@ -30,6 +30,7 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 DEBUG = True
 
 ALLOWED_HOSTS = []
+AUTH_USER_MODEL = 'Custom_user.CustomUser'
 
 
 # Application definition
@@ -41,6 +42,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework',
+    'Custom_user',
 ]
 
 MIDDLEWARE = [
