@@ -27,35 +27,26 @@ class RegisterView(APIView):
         return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 
-class LoginView(APIView):
-    """
-    API endpoint for user login.
-    """
-    permission_classes = [AllowAny]
+import logging
 
+logger = logging.getLogger(__name__)
+
+class LoginView(APIView):
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
+
         if serializer.is_valid():
             user = serializer.validated_data["user"]
+            
+            # Generate JWT tokens
             refresh = RefreshToken.for_user(user)
             return Response({
-                "message": "Login successful!",
-                "user": {
-                    "id": user.id,
-                    "email": user.email,
-                    "username": user.username,
-                    "phone_number": user.phone_number,
-                    "is_landlord": user.is_landlord,
-                    "is_renter": user.is_renter,
-                },
-                "tokens": {
-                    "refresh": str(refresh),
-                    "access": str(refresh.access_token),
-                },
+                "message": "Login successful",
+                "access_token": str(refresh.access_token),
+                "refresh_token": str(refresh)
             }, status=status.HTTP_200_OK)
-        return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 class ProfileView(APIView):
     """
     API endpoint to retrieve the logged-in user's profile.

@@ -23,23 +23,28 @@ class RegisterSerializer(serializers.ModelSerializer):
         return user
 
 class LoginSerializer(serializers.Serializer):
-    email = serializers.EmailField()
+    email_or_username = serializers.CharField()
     password = serializers.CharField(write_only=True)
 
     def validate(self, data):
-        email = data.get("email")
+        email_or_username = data.get("email_or_username")
         password = data.get("password")
 
-        if not email or not password:
-            raise serializers.ValidationError("Both email and password are required.")
-
-        user = authenticate(username=email, password=password)  # Ensure username=email is passed
-
+        # Check if input is email or username
+        user = CustomUser.objects.filter(email=email_or_username).first()
         if not user:
-            raise serializers.ValidationError("Invalid email or password.")
+            user = CustomUser.objects.filter(username=email_or_username).first()
 
-        return {"user": user}
-    
+        # If user not found, return error
+        if not user:
+            raise serializers.ValidationError({"email_or_username": "No account found with this email or username."})
+
+        # Authenticate user (check password)
+        if not user.check_password(password):
+            raise serializers.ValidationError({"password": "Incorrect password. Please try again."})
+
+        data["user"] = user
+        return data  
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser

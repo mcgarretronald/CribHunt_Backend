@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'Custom_user',
 ]
+CORS_ALLOW_ALL_ORIGINS = True
 
 # REST FRAMEWORK
 REST_FRAMEWORK = {
@@ -43,30 +44,36 @@ REST_FRAMEWORK = {
 }
 
 # JWT SETTINGS
+from datetime import timedelta
+
 SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
-    "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),
-    "ALGORITHM": "RS256",
-    "SIGNING_KEY": os.getenv("JWT_SECRET_KEY"),
+
+    # ⏳ Extend Token Expiry
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=7),  # Lasts for 7 days
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=30),  # Refresh token lasts 30 days
+
+    # 🔐 Symmetric Encryption
+    "ALGORITHM": "HS256",
+    "SIGNING_KEY": os.getenv("JWT_SECRET_KEY", SECRET_KEY),  # Uses Django's SECRET_KEY
     "VERIFYING_KEY": None,
-    "JWK_URL": f"https://{AUTH0_DOMAIN}/.well-known/jwks.json",
-    "AUDIENCE": AUTH0_CLIENT_ID,
-    "ISSUER": f"https://{AUTH0_DOMAIN}/",
+
+    # 🔄 Enable Token Refresh
+    "BLACKLIST_AFTER_ROTATION": True,
+    "UPDATE_LAST_LOGIN": True,
 }
-CORS_ALLOW_ALL_ORIGINS = True
+
 # Middleware
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',  # Move this to the top
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
-    'django.middleware.common.CommonMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
-
 # URLs & WSGI
 ROOT_URLCONF = 'cribhunt.urls'
 WSGI_APPLICATION = 'cribhunt.wsgi.application'
