@@ -3,9 +3,8 @@ import os
 from datetime import timedelta
 from dotenv import load_dotenv
 
-
+# Define BASE_DIR as a Path object
 BASE_DIR = Path(__file__).resolve().parent.parent
-
 
 load_dotenv(os.path.join(BASE_DIR, '.env'))
 
@@ -15,6 +14,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = ["*"]
 CORS_ALLOW_ALL_ORIGINS = True
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -26,6 +26,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
     "Custom_user",
+    "property",
 ]
 
 SIMPLE_JWT = {
@@ -86,8 +87,10 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "/static/"
-MEDIA_URL = "/media/"
-MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+
+# Correct BASE_DIR usage and avoid redefining it as a string
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -103,5 +106,3 @@ SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
 }
-
-
