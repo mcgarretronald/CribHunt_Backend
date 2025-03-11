@@ -7,7 +7,6 @@ class CustomUser(AbstractUser):
     profile_picture = models.ImageField(upload_to='profile_pics/', blank=True, null=True)
     is_landlord = models.BooleanField(default=False)
     is_renter = models.BooleanField(default=False)
-    password = models.CharField(max_length=128)  
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
@@ -16,6 +15,9 @@ class CustomUser(AbstractUser):
         return self.email
 
     def set_password(self, raw_password):
-        """Hash the password before saving."""
+        """Override set_password to hash passwords properly"""
         from django.contrib.auth.hashers import make_password
-        self.password = make_password(raw_password)
+        if raw_password:
+            self.password = make_password(raw_password)
+        else:
+            self.set_unusable_password()  

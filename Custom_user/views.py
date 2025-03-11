@@ -1,23 +1,21 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
-from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
 from django.conf import settings
 from .serializers import RegisterSerializer, LoginSerializer, UserProfileSerializer
-from rest_framework.permissions import AllowAny, IsAuthenticated
 import requests
 import logging
+import json
+import os
+from .models import CustomUser
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
 
 class RegisterView(APIView):
-    """
-    API endpoint for user registration.
-    """
-    permission_classes = [AllowAny]
+    permission_classes = [permissions.AllowAny]
 
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
@@ -26,32 +24,22 @@ class RegisterView(APIView):
             return Response({"message": "User registered successfully!"}, status=status.HTTP_201_CREATED)
         return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-
-import logging
-
-logger = logging.getLogger(__name__)
-
 class LoginView(APIView):
+    permission_classes = [permissions.AllowAny]
+
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
-
         if serializer.is_valid():
             user = serializer.validated_data["user"]
-            
-            # Generate JWT tokens
             refresh = RefreshToken.for_user(user)
             return Response({
-                "message": "Login successful",
                 "access_token": str(refresh.access_token),
-                "refresh_token": str(refresh)
+                "refresh_token": str(refresh),
             }, status=status.HTTP_200_OK)
-
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
 class ProfileView(APIView):
-    """
-    API endpoint to retrieve the logged-in user's profile.
-    """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
         serializer = UserProfileSerializer(request.user)
@@ -59,66 +47,70 @@ class ProfileView(APIView):
 
 
 class Auth0LoginView(APIView):
-    """
-    API endpoint for logging in with Auth0.
-    """
-    permission_classes = [AllowAny]
+    permission_classes = [permissions.AllowAny]
 
     def post(self, request):
-        token = request.data.get("access_token")
-        if not token:
+        auth0_token = request.data.get("access_token")
+        is_landlord = request.data.get("is_landlord", False)
+        is_renter = request.data.get("is_renter", False)
+
+        if not auth0_token:
             return Response({"error": "Access token is required"}, status=status.HTTP_400_BAD_REQUEST)
 
         auth0_domain = settings.AUTH0_DOMAIN
-        user_info_url = f"https://{auth0_domain}/userinfo"
-        headers = {"Authorization": f"Bearer {token}"}
+        auth0_url = f"https://{auth0_domain}/userinfo"
 
-        try:
-            user_info = requests.get(user_info_url, headers=headers)
-            user_info.raise_for_status()
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Auth0 request failed: {e}")
-            return Response({"error": "Invalid Auth0 token or request error"}, status=status.HTTP_401_UNAUTHORIZED)
+        headers = {"Authorization": f"Bearer {auth0_token}"}
+        response = requests.get(auth0_url, headers=headers)
 
-        user_data = user_info.json()
-        email = user_data.get("email")
-        name = user_data.get("name")
-        profile_pic = user_data.get("picture")
+        if response.status_code != 200:
+            return Response({"error": "Invalid Auth0 token"}, status=status.HTTP_400_BAD_REQUEST)
+
+        auth0_user_info = response.json()
+        email = auth0_user_info.get("email")
 
         if not email:
-            return Response({"error": "Email is required from Auth0"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Email not provided by Auth0"}, status=status.HTTP_400_BAD_REQUEST)
 
-        user, created = User.objects.get_or_create(email=email, defaults={
-            "username": name or email.split("@")[0],  # Default to part of email if name is missing
-            "profile_picture": profile_pic
-        })
+        # Check if user exists
+        user = User.objects.filter(email=email).first()
 
-        if not created:
-            # Update user profile picture if it's different
-            if user.profile_picture != profile_pic:
-                user.profile_picture = profile_pic
-                user.save()
+        if user:
+            # Existing user - log them in
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                "message": "Auth0 login successful",
+                "access_token": str(refresh.access_token),
+                "refresh_token": str(refresh),
+                "user": {
+                    "email": user.email,
+                    "username": user.username,
+                    "is_landlord": user.is_landlord,
+                    "is_renter": user.is_renter
+                }
+            }, status=status.HTTP_200_OK)
 
-        # Assign roles
-        is_landlord = request.data.get("is_landlord", False)
-        user.is_landlord = is_landlord
-        user.is_renter = not is_landlord
+        # New user - register them with Auth0 (without a password)
+        user = User(
+            email=email,
+            username=email.split("@")[0],  # Use email prefix as username
+            is_landlord=is_landlord,
+            is_renter=is_renter
+        )
+        user.set_unusable_password()  # This prevents password login
         user.save()
 
-        # Generate JWT tokens
+        # Issue JWT tokens for new Auth0 user
         refresh = RefreshToken.for_user(user)
+
         return Response({
-            "message": "Login successful!",
-            "tokens": {
-                "refresh": str(refresh),
-                "access": str(refresh.access_token),
-            },
+            "message": "Auth0 registration successful",
+            "access_token": str(refresh.access_token),
+            "refresh_token": str(refresh),
             "user": {
-                "id": user.id,
                 "email": user.email,
                 "username": user.username,
-                "profile_picture": user.profile_picture.url if user.profile_picture else None,
                 "is_landlord": user.is_landlord,
-                "is_renter": user.is_renter,
+                "is_renter": user.is_renter
             }
-        }, status=status.HTTP_200_OK)
+        }, status=status.HTTP_201_CREATED)
