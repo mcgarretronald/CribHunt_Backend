@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: django-app
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: cribhunt.settings
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        sync: false
+    buildCommand: |
+      pip install -r requirements.txt
+      python manage.py collectstatic --noinput
+      python manage.py migrate
+    startCommand: gunicorn cribhunt.wsgi:application --bind 0.0.0.0:8000
