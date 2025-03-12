@@ -1,3 +1,4 @@
+# filepath: /home/administrator/Desktop/CribHunt_Backend/dockerfile
 # Use an official Python runtime as a parent image
 FROM python:3.10-slim
 
@@ -18,7 +19,7 @@ COPY requirements.txt /app/
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
 # Copy project files
-COPY . /
+COPY . /app/
 
 # Expose port 8000 for the application
 EXPOSE 8000
